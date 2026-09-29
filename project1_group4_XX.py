@@ -38,14 +38,14 @@ def part3():
     scaler_b = StandardScaler()
     scaled_b = scaler_b.fit_transform(features_b)
 
+    # k values from 2-11
+    k_values = range(2, 11)
+
     # function for computing k metrics for a and b
     def compute_k_metrics(scaled_data):
         # lists to hold inertias and silhouette scores
         inertias = []
         silhouette_scores = []
-
-        # k values from 2-11
-        k_values = range(2, 11)
 
         # go through k values and get KMeans to group data into clusters
         for k in k_values:
@@ -62,10 +62,33 @@ def part3():
 
         return inertias, silhouette_scores
 
+    # get inertias and silhouettes for a and b features
     inertias_a, silhouette_a = compute_k_metrics(scaled_a)
     inertias_b, silhouette_b = compute_k_metrics(scaled_b)
 
+    # visualization w/matplotlib
 
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+
+    # elbow plot (left)
+    axes[0].plot(k_values, inertias_a, marker='o', label='Option A (Income, Spending)')
+    axes[0].plot(k_values, inertias_b, marker='o', label='Option B (Age, Income, Spending)')
+    axes[0].set_xlabel('K (number of clusters)')
+    axes[0].set_ylabel('Inertia')
+    axes[0].set_title('Elbow Method')
+    axes[0].legend()
+
+    # silhouette plot (right)
+    axes[1].plot(k_values, silhouette_a, marker='o', label='Option A (Income, Spending)')
+    axes[1].plot(k_values, silhouette_b, marker='o', label='Option B (Age, Income, Spending)')
+    axes[1].set_xlabel('K (number of clusters)')
+    axes[1].set_ylabel('Silhouette Score')
+    axes[1].set_title('Silhouette Score')
+    axes[1].legend()
+
+    # show plot
+    plt.tight_layout()
+    plt.show()
 
 #=================Part 4=================
 def part4():
