@@ -54,14 +54,16 @@ def part3():
 
             # add inertia to list
             #   --> inertia is how tightly data points are grouped in clusters
-            inertias.append(kmeans.inertia)
+            inertias.append(kmeans.inertia_)
 
             # add silhouette score to list
             #   --> silhouette score looks at how close one cluster is to neighboring clusters
             silhouette_scores.append(silhouette_score(scaled_data, labels))
 
+        return inertias, silhouette_scores
+
     inertias_a, silhouette_a = compute_k_metrics(scaled_a)
-    inertias_b, silhouete_b = compute_k_metrics(scaled_b)
+    inertias_b, silhouette_b = compute_k_metrics(scaled_b)
 
 
 
