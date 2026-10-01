@@ -1,14 +1,66 @@
 import pandas as pd
 import numpy as np
 import sklearn
+from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.pipeline import Pipeline
+from sklearn.neighbors import KNeighborsClassifier
 import matplotlib.pyplot as plt
+from sklearn.datasets import load_breast_cancer
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
-from sklearn.metrics import silhouette_score
+from sklearn.metrics import silhouette_score, recall_score, accuracy_score, confusion_matrix, precision_recall_curve, make_scorer
 
 #=================Part 1=================
 def part1():
-    data1 = sklearn.datasets.load_breast_cancer() # Data set for Part 1
+
+# Load the breast cancer dataset
+    data = load_breast_cancer(as_frame=True)
+    X = data.data
+    y = data.target
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=43)
+
+    # Grid search for k that maximizes recall on the malignant class (0), with feature scaling
+    pipeline = Pipeline([('scaler', StandardScaler()), ('knn', KNeighborsClassifier())])
+    recall_malignant = make_scorer(recall_score, pos_label=0)
+    grid = GridSearchCV(pipeline, {'knn__n_neighbors': range(1, 8, 2)}, scoring=recall_malignant, cv=5)
+    grid.fit(X_train, y_train)
+    model = grid.best_estimator_
+    print(f'Best k: {grid.best_params_["knn__n_neighbors"]}, CV recall(malignant): {grid.best_score_:.3f}')
+
+    # Evaluate the KNN classifier
+    y_pred = model.predict(X_test)
+    accuracy = accuracy_score(y_test, y_pred)
+    print(f'Accuracy: {accuracy:.3f}')
+    conf_matrix = confusion_matrix(y_test, y_pred)
+    print("Confusion Matrix:")
+    print(conf_matrix)
+    probs = model.predict_proba(X_test)[:, 1]  # P(benign)
+
+    # Sweep thresholds to see the FN/FP tradeoff for lowering benign threshold
+    print(f"\n{'Threshold':>10} {'FN':>6} {'FP':>6} {'Accuracy':>10}")
+    for threshold in np.arange(0.1, 0.6, 0.05):
+        y_pred_t = (probs >= threshold).astype(int)
+    cm = confusion_matrix(y_test, y_pred_t)
+    fn, fp = cm[0, 1], cm[1, 0]
+    acc = accuracy_score(y_test, y_pred_t)
+    print(f'{threshold:>10.2f} {fn:>6} {fp:>6} {acc:>10.3f}')
+
+    precision, recall_vals, thresholds = precision_recall_curve(y_test, probs)
+
+    # Plot the precision-recall curve
+    plt.plot(recall_vals, precision, marker='X')
+    plt.xlabel("Recall")
+    plt.ylabel("Precision")
+
+    # thresholds has one fewer element than precision/recall, so pad it for a clean table
+    print(f"\n{'Threshold':>10} {'Precision':>10} {'Recall':>10}")
+    for thresh, prec, rec in zip(np.append(thresholds, np.nan), precision, recall_vals):
+        thresh_str = f'{thresh:.3f}' if not np.isnan(thresh) else 'N/A'
+    print(f"{thresh_str:>10} {prec:>10.3f} {rec:>10.3f}")
+
+    plt.title("KNN Classifier Precision-Recall Curve")
+    plt.show()
 
 #=================Part 2=================
 def part2():
