@@ -126,8 +126,6 @@ base_on_clean = base_model.predict(X_test_clean)
 base_clean_mse = mean_squared_error(y_test_clean, base_on_clean)
 base_clean_r2 = r2_score(y_test_clean, base_on_clean)
 
-print("\n--- Model Comparison ---")
-print("Each model on its own test set:")
 print(f"  Baseline (full test):  MSE {baseline_mse:.4f} | R² {baseline_r2:.4f}")
 print(f"  Cleaned (clean test):  MSE {cleaned_mse:.4f} | R² {cleaned_r2:.4f}")
 
