@@ -64,7 +64,113 @@ def part1():
 
 #=================Part 2=================
 def part2():
-    data2 = sklearn.datasets.fetch_california_housing() # Data set for Part 2
+# Load the California housing data
+housing = fetch_california_housing(as_frame=True)
+
+# X is what we know about each area, y is the price we want to predict
+X = housing.data
+y = housing.target  # prices are in $100k, so 2.5 means $250k
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+
+# ----- Baseline model -----
+
+# Train a regular linear regression on the raw data
+base_model = LinearRegression()
+base_model.fit(X_train, y_train)
+
+# Predict prices for the test houses
+test_pred1 = base_model.predict(X_test)
+
+# MSE: average squared error, lower is better
+baseline_mse = mean_squared_error(y_test, test_pred1)
+print(f"\nBaseline Test MSE: {baseline_mse:.4f}")
+
+baseline_r2 = r2_score(y_test, test_pred1)
+print(f"Baseline Test R²: {baseline_r2:.4f}")
+
+cap = y_train.max()
+print(f"\nCap value: {cap}")
+print(f"Training homes stuck at the cap: {(y_train == cap).sum()} ({(y_train == cap).mean()*100:.1f}%)")
+print("Most common prices:")
+print(y_train.value_counts().head())
+
+
+# ----- Clean the data -----
+
+# Drop every house sitting at the cap, in both train and test
+clean_train_rows = y_train < cap
+X_train_clean = X_train[clean_train_rows]
+y_train_clean = y_train[clean_train_rows]
+
+clean_test_rows = y_test < cap
+X_test_clean = X_test[clean_test_rows]
+y_test_clean = y_test[clean_test_rows]
+
+
+# ----- Cleaned model -----
+
+# Train a second model on the cleaned data
+cleaned_model = LinearRegression()
+cleaned_model.fit(X_train_clean, y_train_clean)
+
+# Test it on the cleaned test houses
+test_pred2 = cleaned_model.predict(X_test_clean)
+cleaned_mse = mean_squared_error(y_test_clean, test_pred2)
+cleaned_r2 = r2_score(y_test_clean, test_pred2)
+
+
+# test the baseline on the cleaned test houses
+base_on_clean = base_model.predict(X_test_clean)
+base_clean_mse = mean_squared_error(y_test_clean, base_on_clean)
+base_clean_r2 = r2_score(y_test_clean, base_on_clean)
+
+print("\n--- Model Comparison ---")
+print("Each model on its own test set:")
+print(f"  Baseline (full test):  MSE {baseline_mse:.4f} | R² {baseline_r2:.4f}")
+print(f"  Cleaned (clean test):  MSE {cleaned_mse:.4f} | R² {cleaned_r2:.4f}")
+
+print("Both models on the same clean test set (the fair one):")
+print(f"  Baseline:  MSE {base_clean_mse:.4f} | R² {base_clean_r2:.4f}")
+print(f"  Cleaned:   MSE {cleaned_mse:.4f} | R² {cleaned_r2:.4f}")
+print(f"  MSE improved by {((base_clean_mse - cleaned_mse) / base_clean_mse) * 100:.2f}%")
+
+# Looking at homes under $200k and check the average error
+# A positive number means the model guesses too high
+low = y_test_clean < 2.0
+base_low_error = (base_on_clean[low] - y_test_clean[low]).mean()
+clean_low_error = (test_pred2[low] - y_test_clean[low]).mean()
+
+print("\n--- Error on Homes Under $200k ---")
+print(f"Baseline average error: {base_low_error:.4f}")
+print(f"Cleaned average error:  {clean_low_error:.4f}")
+
+
+# ----- Plot -----
+
+# Each dot is a house: what we guessed vs what it really cost
+plt.figure(figsize=(8, 6))
+plt.scatter(test_pred1, y_test, alpha=0.3, color='blue')
+
+# Red line at the $500k cap
+plt.axhline(5.0, color='red', linestyle='--', label='$500k Cap')
+plt.plot([0, 5], [0, 5], color='black', linestyle=':', label='Ideal (Actual = Predicted)')
+
+# Point out the flat row of capped houses
+plt.annotate('Horizontal Artifact:\nCapped at $500k',
+             xy=(3.5, 5.0), xytext=(1.0, 4.2),
+             arrowprops=dict(facecolor='black', shrink=0.05, width=1, headwidth=6),
+             bbox=dict(boxstyle="round,pad=0.3", fc="yellow", alpha=0.5))
+
+plt.title("Baseline Model: Predicted vs. Actual")
+plt.xlabel("Predicted Price ($100k)")
+plt.ylabel("Actual Price ($100k)")
+plt.legend()
+
+# Save the chart for the report before showing it
+plt.savefig("baseline_pred_vs_actual.png", dpi=150, bbox_inches="tight")
+plt.show()
 
 #=================Part 3=================
 def part3():
