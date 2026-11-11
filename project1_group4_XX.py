@@ -199,7 +199,95 @@ def part3():
 
 #=================Part 4=================
 def part4():
-    df2 = pd.read_csv("Air_Quality.csv") # Data set for Part 4
+    #loading Beijing Air Quality data from Aotizhongxin station
+    df = pd.read_csv("Air_Quality.csv")
+
+    #select exactly one station
+    df = df[df['station']=='Aotizhongxin'].copy()
+
+    #combine separate year/month/day/hour columns into a single index
+    df['datetime'] = pd.to_datetime(df[['year', 'month', 'day', 'hour']])
+    df = df.set_index('datetime')
+    df = df.sort_index()
+
+    print(f"Station: {df['station'].iloc[0]}")
+    print(f"Date range: {df.index.min()} to {df.index.max()}")
+    print(f"Total hourly records: {len(df)}")
+
+    #extracts pm2.5 into its own series
+    pm25 = df['PM2.5'].copy()
+
+    #gets station name, date span, total hourly records
+    #checks how many NaN values exist in pm2.5
+    total = len(pm25)
+    missing = pm25.isna().sum()
+    print(f"\nMissing PM2.5 values: {missing} / {total} ({missing/total*100:.1f}%)")
+
+    #find consecutive NaN blocks to understand gap sizes
+    is_nan = pm25.isna()
+    gap_starts = is_nan & (~is_nan.shift(1,fill_value=False))
+    gap_ids = gap_starts.cumsum() * is_nan
+    gap_sizes = gap_ids[is_nan].value_counts()
+
+    print(f"Total missing intervals (blocks): {len(gap_sizes)}")
+    print(f"Max consecutive missing hours: {gap_sizes.max()}")
+    print(f"Short gaps (<= 6 hours): {(gap_sizes <= 6).sum()}")
+    print(f"Long gaps (> 6 hours): {(gap_sizes > 6).sum()}")
+
+    #identify hours belonging to entire gaps of 6 hours or less
+    gap_length_per_hour = gap_ids.map(gap_sizes)
+    short_gap_mask = is_nan & (gap_length_per_hour <= 6)
+
+    #calculates estimates between only existing observations
+    interpolated = pm25.interpolate(method='time',limit_area='inside')
+
+    #apply interpolation only to qualifying short gaps
+    pm25_cleaned = pm25.copy()
+    pm25_cleaned.loc[short_gap_mask] = interpolated.loc[short_gap_mask]
+
+    seasonal_hourly_median = pm25.groupby([pm25.index.month,pm25.index.hour]).transform('median')
+    pm25_cleaned = pm25_cleaned.fillna(seasonal_hourly_median)
+
+    #verify all NaN are resolved
+    remaining_nans = pm25_cleaned.isna().sum()
+    print(f"Remaining NaNs after cleaning: {remaining_nans}")
+
+    #group hourly data into daily mean values
+    daily_pm25 = pm25_cleaned.resample('D').mean()
+
+    #keep original daily observations separate
+    original_daily_pm25 = pm25.resample('D').mean()
+
+    print(f"\nResampled to {len(daily_pm25)} daily observations")
+    print(f"Daily PM2.5 mean: {daily_pm25.mean():.2f} µg/m³")
+
+    x_days = (daily_pm25.index - daily_pm25.index[0]).days.values
+    y_pm25 = daily_pm25.values
+
+    slope, intercept = np.polyfit(x_days, y_pm25, deg=1)
+    trend_line = np.polyval([slope, intercept], x_days)
+    print(f"Trend slope: {slope:.4f} µg/m³ per day ({slope * 365.25:.2f} µg/m³ per year)")
+
+    #plot daily pm2.5 and trend line
+    plt.figure(figsize=(12, 6))
+    plt.scatter(
+        original_daily_pm25.index,
+        original_daily_pm25.values,
+        alpha=0.4,
+        s=12,
+        color='steelblue',
+        label='Original Daily PM2.5 Means'
+    )
+    plt.plot(daily_pm25.index, trend_line, color='red', linewidth=2.5, label=f'Cleaned Data Trend ({slope * 365.25:.2f} µg/m³/yr)')
+    plt.title('Beijing Air Quality (Aotizhongxin) — Daily PM2.5 with Linear Trend')
+    plt.xlabel('Date')
+    plt.ylabel('PM2.5 (µg/m³)')
+    plt.legend()
+    plt.grid(True, linestyle='--', alpha=0.5)
+    plt.tight_layout()
+    plt.show()
+
+    
 
 #=================Main=================
 def main():
