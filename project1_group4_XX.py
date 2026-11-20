@@ -196,6 +196,11 @@ def part3():
     inertias_a, silhouette_a = compute_k_metrics(scaled_a)
     inertias_b, silhouette_b = compute_k_metrics(scaled_b)
 
+    # print scores so the report numbers can be reproduced
+    print(f"\n{'K':>3} {'Inertia A':>10} {'Silhouette A':>13} {'Inertia B':>10} {'Silhouette B':>13}")
+    for k, ia, sa, ib, sb in zip(k_values, inertias_a, silhouette_a, inertias_b, silhouette_b):
+        print(f"{k:>3} {ia:>10.2f} {sa:>13.3f} {ib:>10.2f} {sb:>13.3f}")
+
     # visualization w/matplotlib
 
     fig, axes = plt.subplots(1, 2, figsize=(12, 5))
@@ -217,6 +222,33 @@ def part3():
     axes[1].legend()
 
     # show plot
+    plt.tight_layout()
+    plt.show()
+
+
+    # refit kmeans at the chosen k for each option and keep the labels
+    best_k_a = 5  # silhouette peak for option a
+    best_k_b = 6  # silhouette peak for option b
+
+    labels_a = KMeans(n_clusters=best_k_a, random_state=42, n_init=10).fit_predict(scaled_a)
+    labels_b = KMeans(n_clusters=best_k_b, random_state=42, n_init=10).fit_predict(scaled_b)
+
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+
+    # option a: plot the original (unscaled) columns so the axes have real units
+    axes[0].scatter(features_a["Annual Income (k$)"], features_a["Spending Score (1-100)"],
+                    c=labels_a, cmap='tab10', s=40, edgecolor='k')
+    axes[0].set_xlabel('Annual Income (k$)')
+    axes[0].set_ylabel('Spending Score (1-100)')
+    axes[0].set_title(f'Option A: Income vs Spending (K={best_k_a})')
+
+    # option b: 3 features, so show age vs spending (the pair that shows age's effect)
+    axes[1].scatter(features_b["Age"], features_b["Spending Score (1-100)"],
+                    c=labels_b, cmap='tab10', s=40, edgecolor='k')
+    axes[1].set_xlabel('Age')
+    axes[1].set_ylabel('Spending Score (1-100)')
+    axes[1].set_title(f'Option B: Age vs Spending (K={best_k_b})')
+
     plt.tight_layout()
     plt.show()
 
